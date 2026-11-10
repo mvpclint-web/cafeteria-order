@@ -156,7 +156,7 @@ const SUPPLIERS=[
   ["Beef cubes (seasoning)",6,"pcs"],["Crispy fry",6,"pack"],["Bread crumbs",1,"kg"],["Fried garlic",1,"kg"],["Salt",4,"kg"],
   ["Reno (big)",2,"can"],["Flour",10,"kg"],["Cornstarch",6,"kg"],["Brown sugar",10,"kg"],["White sugar",6,"kg"],
   ["Salted black beans",3,"pack"],["Shrimp paste",1,"kg"]]},
- {id:"ling",name:"Ling",what:"Pork, beef, longganisa",items:[
+ {id:"ling",name:"Lina",what:"Pork, beef, longganisa",items:[
   ["Skinless longganisa",10,"kg"],["Rolled maling",10,"pcs"],["Longganisa cocktail",10,"kg"],["Longganisa (big)",5,"kg"],
   ["Porkchop",20,"pcs"],["Porkchop, thin (manipis)",60,"pcs"],["Beef cubes","6+18","kg"],["Beef strips","4+4+4","kg"],["Jowls","30+15","kg"],
   ["Frozen strips","18+15","kg"],["Giniling","6+20","kg"],["Ribs, adobo cut",20,"kg"],["Frozen adobo cut",18,"kg"],["Liempo, adobo cut",2,"kg"],
@@ -189,6 +189,7 @@ S.catalog=S.catalog||{};
 const DEFAULT_ITEMS=Object.fromEntries(SUPPLIERS.map(s=>[s.id,s.items]));
 S.sups=S.sups||SUPPLIERS.map(({id,name,what})=>({id,name,what}));
 const SUPS=()=>S.sups;
+S.sups.forEach(s=>{if(s.id==="ling"&&s.name==="Ling")s.name="Lina"}); // one time: Ling was renamed Lina
 const itemsOf=s=>S.catalog[s.id]||DEFAULT_ITEMS[s.id]||[];
 const setItems=(sid,arr)=>{S.catalog[sid]=arr};
 let UI={edit:null,del:null};
@@ -226,7 +227,7 @@ function rowsHTML(s,q=""){
 }
 function stallHTML(s,q,withHead=true){
   const rows=rowsHTML(s,q);if(q&&!rows)return"";
-  return `<section class="stall">${withHead?`<div class="stall-head"><h3>${s.name}<small>${s.what}</small></h3><button class="ghost" data-fill="${s.id}">Same as last time for all</button></div>`:`<div class="stall-head"><span class="note">${itemsOf(s).length} items</span><button class="ghost" data-fill="${s.id}">Same as last time for all</button></div>`}${rows}</section>`;
+  return `<section class="stall">${withHead?`<div class="stall-head"><h3>${s.name}<small>${s.what}</small></h3><button class="ghost" data-fill="${s.id}">Same as last time for all</button></div>`:`<div class="stall-head"><span class="note">${itemsOf(s).length} items</span><div class="mbtns"><button class="ghost" data-fill="${s.id}">Same as last time for all</button><button class="danger" data-resetsup="${s.id}">Reset</button></div></div>`}${rows}</section>`;
 }
 function message(s){
   const lines=itemsOf(s).map(([n,,unit])=>{const v=S.qty[key(s.id,n)];const p=packsOf(v).map(x=>x.trim()).filter(x=>parseFloat(x)>0);if(!p.length)return null;
@@ -301,6 +302,7 @@ function opt3(){
       <div class="cards">${SUPS().map(s=>{const c=countFor(s.id),d=S.done[s.id];
         return `<button class="scard" data-go="o3:${s.id}"><div class="who"><b>${s.name}</b><span>${s.what}</span></div>
           <span class="pill ${d?"done":c?"some":"todo"}">${d?"✓ Done · "+c:c?c+" items · not done":"Not started"}</span><span class="arrow">›</span></button>`}).join("")}</div>
+      ${UI.resetAll?`<div class="msg delrow"><div>Clear the amounts for <b>all suppliers</b>? Everyone goes back to <b>Not started</b>.</div><div class="mbtns"><button class="dangerfill" data-resetallyes="1">Yes, reset all</button><button class="ghost" data-cancel="1">Cancel</button></div></div>`:`<button class="danger" data-resetall="1">Reset all amounts</button>`}
       </div></main><div class="bar"><div class="wrap"><div class="count"><b>${doneN} of ${SUPS().length}</b> done</div><button class="primary" data-go="o3:send" ${total()?"":"disabled"}>Review & send →</button></div></div>`;
   }
   if(S.o3==="send") return header("Send to suppliers",{back:"o3:home"})+`<main><div class="wrap">
@@ -311,7 +313,7 @@ function opt3(){
     </div></main>`;
   const s=sup(S.o3);
   return header(s.name,{back:"o3:home",mini:`<span class="lbl" style="font-size:.8rem">${s.what} · for ${dShort(run().d)}</span>`})+`<main><div class="wrap">
-    ${stallHTML(s,"",false)}</div></main>
+    ${UI.resetSup?`<div class="msg delrow"><div>Clear all amounts for <b>${esc(s.name)}</b>? ${esc(s.name)} goes back to <b>Not started</b>.</div><div class="mbtns"><button class="dangerfill" data-resetsupyes="${s.id}">Yes, reset ${esc(s.name)}</button><button class="ghost" data-cancel="1">Cancel</button></div></div>`:""}${stallHTML(s,"",false)}</div></main>
     <div class="bar"><div class="wrap"><div class="count"><b>${countFor(s.id)}</b> items</div><button class="primary" data-done="${s.id}">Done with ${s.name} ✓</button></div></div>`;
 }
 
@@ -344,6 +346,10 @@ document.addEventListener("click",async e=>{
   const t=e.target.closest("button");if(!t)return;const d=t.dataset;
   if(d.opt){S.opt=+d.opt;save();render();scrollTo(0,0);return}
   if(d.reset){UI={reset:true};render(true);return}
+  if(d.resetall){UI={resetAll:true};render(true);return}
+  if(d.resetallyes){S.qty={};S.done={};UI={edit:null,del:null};save();render(true);toast("All amounts cleared");return}
+  if(d.resetsup){UI={resetSup:true};render();scrollTo(0,0);return}
+  if(d.resetsupyes){const id=d.resetsupyes;Object.keys(S.qty).forEach(k=>{if(k.startsWith(id+"|"))delete S.qty[k]});delete S.done[id];UI={edit:null,del:null};save();render(true);toast(sup(id).name+" cleared");return}
   if(d.resetyes){newOrder();UI={edit:null,del:null};S.o3="start";save();render();scrollTo(0,0);toast("New order started");return}
   if(d.supedit){UI={supEdit:true};render(true);return}
   if(d.supdel){UI={supDel:true};render(true);return}
