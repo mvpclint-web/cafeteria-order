@@ -195,10 +195,8 @@ let UI={edit:null,del:null};
 const UNITS=[["kg","kg"],["pcs","pcs"],["bundle","bundle"],["pack","pack"],["sack","sack"],["tray","tray"],["box","box"],["can","can"],["bottle","bottle"],["gal","gallon"],["₱","pesos (₱)"],["ask","ask supplier"]];
 const unitOpts=sel=>UNITS.map(([v,l])=>`<option value="${v}"${v===sel?" selected":""}>${l}</option>`).join("");
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
-if(!Object.keys(S.qty).length){ // example half-done order so every layout opens in a working state
-  ["ling","bing"].forEach(id=>SUPPLIERS.find(x=>x.id===id).items.forEach(([n,l])=>{if(l!=null)S.qty[key(id,n)]=String(l)}));
-  S.qty[key("ling","Jowls")]="20+10";S.qty[key("ling","Beef cubes")]="12";S.done={ling:true};
-}
+if(!S.cleanStart){S.qty={};S.done={};S.cleanStart=true} // one time: drop the old sample amounts, keep supplier/item edits
+const newOrder=()=>{S.qty={};S.done={}};
 
 function nextDow(dow){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+((dow-d.getDay()+7)%7));return d}
 const RUNS=[{id:"mon",d:nextDow(1)},{id:"thu",d:nextDow(4)}].sort((a,b)=>a.d-b.d);
@@ -331,7 +329,10 @@ function opt3(){
   }
   if(S.o3==="send") return header("Send to suppliers",{back:"o3:home"})+`<main><div class="wrap">
     <p class="intro">Tap <b>Copy message</b>, open that supplier's chat in Viber or Messenger, and paste.</p>
-    ${SUPS().map(msgHTML).join("")}</div></main>`;
+    ${SUPS().map(msgHTML).join("")}
+    ${UI.reset?`<div class="msg delrow"><div>Clear all amounts and start the next order? Every supplier goes back to <b>Not started</b>.</div><div class="mbtns"><button class="dangerfill" data-resetyes="1">Yes, start new order</button><button class="ghost" data-cancel="1">Cancel</button></div></div>`
+      :`<button class="bigbtn edit" data-reset="1"><b>Finished sending?</b><span>Start a new order. All suppliers go back to Not started.</span></button>`}
+    </div></main>`;
   const s=sup(S.o3);
   return header(s.name,{back:"o3:home",mini:`<span class="lbl" style="font-size:.8rem">${s.what} · for ${dShort(run().d)}</span>`})+`<main><div class="wrap">
     ${stallHTML(s,"",false)}</div></main>
@@ -366,6 +367,8 @@ document.addEventListener("change",e=>{if(e.target.id==="run"){S.run=e.target.va
 document.addEventListener("click",async e=>{
   const t=e.target.closest("button");if(!t)return;const d=t.dataset;
   if(d.opt){S.opt=+d.opt;save();render();scrollTo(0,0);return}
+  if(d.reset){UI={reset:true};render(true);return}
+  if(d.resetyes){newOrder();UI={edit:null,del:null};S.o3="start";save();render();scrollTo(0,0);toast("New order started");return}
   if(d.supedit){UI={supEdit:true};render(true);return}
   if(d.supdel){UI={supDel:true};render(true);return}
   if(d.supdelyes){const id=d.supdelyes,nm=sup(id).name;S.sups=S.sups.filter(x=>x.id!==id);delete S.catalog[id];delete S.done[id];
