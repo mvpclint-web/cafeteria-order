@@ -196,12 +196,14 @@ const UNITS=[["kg","kg"],["pcs","pcs"],["bundle","bundle"],["pack","pack"],["sac
 const unitOpts=sel=>UNITS.map(([v,l])=>`<option value="${v}"${v===sel?" selected":""}>${l}</option>`).join("");
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 if(!S.cleanStart){S.qty={};S.done={};S.cleanStart=true} // one time: drop the old sample amounts, keep supplier/item edits
-const newOrder=()=>{S.qty={};S.done={}};
+const newOrder=()=>{S.qty={};S.done={};S.date=tomorrowISO()};
 
-function nextDow(dow){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+((dow-d.getDay()+7)%7));return d}
-const RUNS=[{id:"mon",d:nextDow(1)},{id:"thu",d:nextDow(4)}].sort((a,b)=>a.d-b.d);
-if(!S.run||!RUNS.find(r=>r.id===S.run))S.run=RUNS[0].id;
-const run=()=>RUNS.find(r=>r.id===S.run);
+const isoOf=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const dayFrom=(n)=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+n);return d};
+const tomorrowISO=()=>isoOf(dayFrom(1));
+// Market day defaults to tomorrow; a date picked from the calendar is kept until that day has passed.
+if(!S.date||S.date<isoOf(dayFrom(0)))S.date=tomorrowISO();
+const run=()=>{const [y,m,dd]=S.date.split("-").map(Number);return {d:new Date(y,m-1,dd)}};
 const dShort=d=>d.toLocaleDateString("en-PH",{weekday:"short",month:"short",day:"numeric"});
 const dLong=d=>d.toLocaleDateString("en-PH",{weekday:"long",month:"long",day:"numeric"});
 const sup=id=>SUPS().find(s=>s.id===id);
@@ -236,38 +238,12 @@ function message(s){
 function msgHTML(s){const t=message(s);
   return t?`<div class="msg"><div class="msg-head"><h3>${s.name}</h3><button class="ghost" data-copy="${s.id}">Copy message</button></div><pre id="m-${s.id}">${esc(t)}</pre></div>`
           :`<div class="msg skip"><b>${s.name}</b> — nothing to order this time.</div>`;}
-const daySelect=()=>`<label><span class="lbl">Market day</span><select id="run">${RUNS.map(r=>`<option value="${r.id}"${r.id===S.run?" selected":""}>${dShort(r.d)} · Wk 1</option>`).join("")}</select></label>`;
+const daySelect=()=>`<label><span class="lbl">Market day (tap to pick another date)</span><input type="date" id="run" value="${S.date}" min="${isoOf(dayFrom(0))}"></label>`;
 const header=(title,{back,mini,steps}={})=>`<header class="app"><div class="wrap">
   <div class="toprow">${back?`<button class="backbtn" data-go="${back}">← Back</button>`:""}<h1>${title}</h1></div>
   ${steps||""}${mini?`<div class="mini">${mini}</div>`:""}</div></header>`;
 const stepsBar=n=>`<ol class="steps">${["1. Market day","2. Amounts","3. Send"].map((t,i)=>`<li class="${i<n?"now":""}">${t}</li>`).join("")}</ol>`;
 const searchBox=`<label><span class="lbl">Find an item</span><input id="search" type="search" placeholder="e.g. okra" value="${esc(S.q||"")}"></label>`;
-
-// ---------- Option 1: steps ----------
-function opt1(){
-  if(S.o1==="day") return header("Market Order",{steps:stepsBar(1)})+`<main><div class="wrap">
-    <h2 class="pg">Which market day is this order for?</h2>
-    ${RUNS.map(r=>`<button class="daybtn" data-day="${r.id}" aria-pressed="${r.id===S.run}"><div><b>${dLong(r.d)}</b><span>Week 1 · ${r.id==="mon"?"Monday run (Mon–Wed dishes)":"Thursday run (Thu–Sun dishes)"}</span></div><i>${r.id===S.run?"✓":""}</i></button>`).join("")}
-    </div></main><div class="bar"><div class="wrap"><button class="primary wide" data-go="o1:order">Next: type amounts →</button></div></div>`;
-  if(S.o1==="order") return header("Type amounts",{back:"o1:day",steps:stepsBar(2),mini:searchBox})+`<main><div class="wrap">
-    <p class="intro">For <b>${dLong(run().d)}</b>. Leave a box empty if you don't need that item.</p>
-    ${SUPS().map(s=>stallHTML(s,(S.q||"").toLowerCase())).join("")}
-    </div></main><div class="bar"><div class="wrap"><div class="count"><b>${total()}</b> items</div><button class="primary" data-go="o1:send" ${total()?"":"disabled"}>Next: messages →</button></div></div>`;
-  return header("Send to suppliers",{back:"o1:order",steps:stepsBar(3)})+`<main><div class="wrap">
-    <p class="intro">Tap <b>Copy message</b>, open that supplier's chat in Viber or Messenger, and paste.</p>
-    ${SUPS().map(msgHTML).join("")}</div></main>`;
-}
-
-// ---------- Option 2: tabs ----------
-function opt2(){
-  const s=sup(S.o2),t=message(s);
-  return header(s.name+" <small style='font-family:var(--body);font-size:.8rem;font-weight:400;opacity:.8'>· "+s.what+"</small>",{mini:daySelect()})+`<main><div class="wrap">
-    ${stallHTML(s,"",false)}
-    <h2 class="pg">Message for ${s.name}</h2>
-    ${t?`<div class="msg"><pre id="m-${s.id}">${esc(t)}</pre><button class="primary wide" data-copy="${s.id}">Copy ${s.name}'s message</button></div>`:`<p class="intro">Type amounts above. ${s.name}'s message will appear here.</p>`}
-    </div></main>
-    <nav class="bar tabs" aria-label="Suppliers">${SUPS().map(x=>{const c=countFor(x.id);return `<button data-tab="${x.id}" aria-current="${x.id===S.o2}"><b>${x.name}</b>${c?c+" items":"—"}</button>`}).join("")}</nav>`;
-}
 
 // ---------- Option 3: home ----------
 function opt3(){
@@ -363,7 +339,7 @@ document.addEventListener("input",e=>{
     S.qty[k]=vals.join("+");row.classList.toggle("on",hasQty(S.qty[k]));save();refreshCounts();return}
   setQty(k,e.target.value.trim(),e.target.closest(".row"));
 });
-document.addEventListener("change",e=>{if(e.target.id==="run"){S.run=e.target.value;save();render(true)}});
+document.addEventListener("change",e=>{if(e.target.id==="run"){S.date=e.target.value||tomorrowISO();save();render(true)}});
 document.addEventListener("click",async e=>{
   const t=e.target.closest("button");if(!t)return;const d=t.dataset;
   if(d.opt){S.opt=+d.opt;save();render();scrollTo(0,0);return}
@@ -384,7 +360,6 @@ document.addEventListener("click",async e=>{
   if(d.step){const inp=t.parentElement.querySelector("input");const nv=Math.max(0,(parseFloat(inp.value)||0)+(+d.step));inp.value=nv?fmt(nv):"";setQty(d.k,nv?fmt(nv):"",t.closest(".row"));return}
   if(d.same){if(d.v.includes("+")||packsOf(S.qty[d.same]).length>1){S.qty[d.same]=d.v;save();render(true)}else setQty(d.same,d.v,t.closest(".row"));return}
   if(d.fill){itemsOf(sup(d.fill)).forEach(([n,l])=>{if(l!=null)S.qty[key(d.fill,n)]=String(l)});save();render(true);toast(sup(d.fill).name+": same as last time");return}
-  if(d.day){S.run=d.day;save();render(true);return}
   if(d.tab){S.o2=d.tab;save();render();scrollTo(0,0);return}
   if(d.done){S.done[d.done]=true;S.o3="home";save();render();scrollTo(0,0);toast(sup(d.done).name+" marked done");return}
   if(d.go){const[o,v]=d.go.split(":");S[o]=v;UI={edit:null,del:null};save();render();scrollTo(0,0);return}
