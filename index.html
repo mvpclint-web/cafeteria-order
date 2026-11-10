@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#15302b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Cafeteria Market Order</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone column; home screen of supplier cards, one page per supplier, then a send page */
+:root{
+  --bg:#f3f6f5; --card:#ffffff; --ink:#15302b; --muted:#5d716c; --line:#d9e3e0;
+  --accent:#e8a317; --accent-ink:#2a1d00; --teal:#1f6b5c; --teal-soft:#e2efeb; --field:#f7faf9; --danger:#b3261e; --demo:#e6e9f2; --demo-ink:#39405a;
+  --display:"Barlow Condensed","Arial Narrow",sans-serif; --body:"Barlow",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1a18; --card:#16241f; --ink:#e4eeeb; --muted:#93a8a2; --line:#2a3b36;
+  --accent:#f0b43a; --accent-ink:#231800; --teal:#5fc0a8; --teal-soft:#1d332d; --field:#11201c; --danger:#f2a49c; --demo:#1e2232; --demo-ink:#c3c9e0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1a18; --card:#16241f; --ink:#e4eeeb; --muted:#93a8a2; --line:#2a3b36;
+  --accent:#f0b43a; --accent-ink:#231800; --teal:#5fc0a8; --teal-soft:#1d332d; --field:#11201c; --danger:#f2a49c; --demo:#1e2232; --demo-ink:#c3c9e0; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.4}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--ink)}
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font-family:inherit}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+
+/* compare strip (not part of the real app) */
+.demo{background:var(--demo);color:var(--demo-ink)}
+.demo .wrap{padding-block:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.demo span{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.seg{display:flex;gap:4px;flex:1;min-width:0}
+.seg button{flex:1;border:1px solid color-mix(in srgb,var(--demo-ink) 30%,transparent);background:transparent;color:var(--demo-ink);border-radius:6px;padding:4px 6px;font-size:.78rem;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed=true]{background:var(--demo-ink);color:var(--demo);font-weight:600}
+
+header.app{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--ink);color:var(--bg)}
+header.app .wrap{padding-block:8px;display:flex;flex-direction:column;gap:6px}
+.toprow{display:flex;align-items:center;gap:8px}
+.toprow h1{font-family:var(--display);font-size:1.25rem;margin:0;flex:1;min-width:0;text-wrap:balance}
+.backbtn{background:none;border:0;color:var(--bg);font-size:.9rem;font-weight:600;cursor:pointer;padding:4px 0}
+.mini{display:flex;gap:6px}
+.mini label{flex:1;min-width:0;display:flex;flex-direction:column}
+.mini .lbl{font-size:.68rem;color:color-mix(in srgb,var(--bg) 80%,transparent);margin-bottom:2px}
+.mini select,.mini input{font:inherit;font-size:.8rem;height:30px;padding:4px 7px;border:0;border-radius:6px;background:var(--bg);color:var(--ink);width:100%}
+.steps{display:flex;gap:6px;margin:0;padding:0;list-style:none}
+.steps li{flex:1;font-size:.7rem;color:color-mix(in srgb,var(--bg) 70%,transparent);border-top:3px solid color-mix(in srgb,var(--bg) 25%,transparent);padding-top:3px}
+.steps li.now{color:var(--bg);border-color:var(--accent);font-weight:600}
+
+main .wrap{padding-block:14px 110px;display:flex;flex-direction:column;gap:14px}
+.intro{color:var(--muted);font-size:.9rem;margin:0}
+h2.pg{font-family:var(--display);font-size:1.5rem;margin:0}
+
+/* item rows */
+section.stall{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stall-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.stall-head h3{font-family:var(--display);font-size:1.3rem;margin:0}
+.stall-head small{display:block;color:var(--muted);font-size:.8rem;font-family:var(--body);font-weight:400}
+.ghost{font-size:.82rem;font-weight:600;background:var(--teal-soft);color:var(--teal);border:0;border-radius:8px;padding:7px 10px;cursor:pointer}
+.row{display:grid;grid-template-columns:1fr;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row.on{background:color-mix(in srgb,var(--accent) 10%,var(--card))}
+.name{font-weight:500;font-size:1.05rem;min-width:0}
+.same{justify-self:start;font-size:.85rem;background:var(--teal-soft);color:var(--teal);border:0;border-radius:6px;padding:4px 8px;cursor:pointer;font-variant-numeric:tabular-nums}
+.note{font-size:.82rem;color:var(--muted)} .star{color:var(--accent);font-weight:700}
+.qty{display:flex;align-items:center;gap:6px}
+.qty input{width:96px;font:inherit;font-size:1.15rem;font-weight:600;text-align:right;padding:8px;border:1.5px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-variant-numeric:tabular-nums}
+.qty input:focus{outline:none;border-color:var(--teal)}
+.step{width:44px;height:44px;font-size:1.4rem;font-weight:600;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;cursor:pointer;line-height:1}
+.unit{font-size:.85rem;color:var(--muted)}
+.bigbtn{display:flex;flex-direction:column;gap:4px;text-align:left;width:100%;padding:22px 18px;border-radius:14px;cursor:pointer}
+.bigbtn b{font-family:var(--display);font-size:1.7rem;line-height:1.1}
+.bigbtn span{font-size:.95rem}
+.bigbtn.go{background:var(--accent);color:var(--accent-ink);border:0}
+.bigbtn.edit{background:var(--card);color:var(--ink);border:1.5px solid var(--line)}
+.bigbtn.edit span{color:var(--muted)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.f{display:flex;flex-direction:column;gap:3px;font-size:.8rem;color:var(--muted);min-width:0}
+.f.full{grid-column:1/-1}
+.f input,.f select{font:inherit;font-size:1rem;padding:9px;border:1.5px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);width:100%;min-width:0}
+.addtitle{font-family:var(--display);font-size:1.3rem;margin:0}
+.mbtns{display:flex;gap:8px;flex-wrap:wrap}
+.danger{font-size:.82rem;font-weight:600;background:none;color:var(--danger);border:1.5px solid color-mix(in srgb,var(--danger) 40%,transparent);border-radius:8px;padding:6px 10px;cursor:pointer}
+.dangerfill{font-size:.9rem;font-weight:600;background:var(--danger);color:var(--card);border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
+.delrow{background:color-mix(in srgb,var(--danger) 8%,var(--card))}
+.editform{background:color-mix(in srgb,var(--teal) 6%,var(--card))}
+.packs{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.pack{display:flex;align-items:center;gap:4px;background:var(--field);border:1.5px solid var(--line);border-radius:10px;padding:4px 4px 4px 6px}
+.pack input{width:64px;font:inherit;font-size:1.1rem;font-weight:600;text-align:right;padding:6px;border:0;border-radius:6px;background:var(--card);color:var(--ink);font-variant-numeric:tabular-nums}
+.plus{font-weight:700;color:var(--muted)}
+.rm{width:30px;height:30px;border:0;background:none;color:var(--muted);font-size:1.2rem;cursor:pointer;border-radius:6px}
+.addpack{justify-self:start;background:none;border:1.5px dashed var(--line);color:var(--teal);font-size:.85rem;font-weight:600;border-radius:8px;padding:5px 10px;cursor:pointer}
+
+/* bottom bars */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.bar .wrap{padding-block:10px;display:flex;gap:10px;align-items:center}
+.count{flex:1;font-size:.88rem;color:var(--muted)} .count b{color:var(--ink);font-size:1.05rem}
+.primary{font-family:var(--display);font-size:1.15rem;letter-spacing:.03em;background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:11px 18px;cursor:pointer;font-weight:700}
+.primary:disabled{opacity:.45;cursor:not-allowed}
+.primary.wide{width:100%}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr)}
+.tabs button{background:none;border:0;border-top:3px solid transparent;padding:8px 2px 10px;color:var(--muted);font-size:.8rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.tabs button b{font-family:var(--display);font-size:1.05rem;color:var(--ink);overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.tabs button[aria-current=true]{border-top-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--card))}
+
+/* option 1 day buttons */
+.daybtn{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:var(--card);border:2px solid var(--line);border-radius:12px;padding:16px;cursor:pointer;color:var(--ink)}
+.daybtn b{font-family:var(--display);font-size:1.5rem;display:block}
+.daybtn span{color:var(--muted);font-size:.9rem}
+.daybtn[aria-pressed=true]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--card))}
+.daybtn i{font-style:normal;font-size:1.4rem;color:var(--accent)}
+
+/* option 3 supplier cards */
+.cards{display:flex;flex-direction:column;gap:10px}
+.scard{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;color:var(--ink)}
+.scard .who{flex:1;min-width:0}
+.scard .who b{font-family:var(--display);font-size:1.4rem;display:block}
+.scard .who span{font-size:.85rem;color:var(--muted)}
+.pill{font-size:.8rem;font-weight:600;border-radius:999px;padding:4px 10px;white-space:nowrap}
+.pill.todo{background:var(--field);color:var(--muted);border:1px solid var(--line)}
+.pill.some{background:color-mix(in srgb,var(--accent) 22%,var(--card));color:var(--ink)}
+.pill.done{background:var(--teal);color:var(--card)}
+.arrow{color:var(--muted);font-size:1.3rem}
+
+/* messages */
+.msg{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.msg-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.msg-head h3{font-family:var(--display);font-size:1.3rem;margin:0}
+.msg pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:var(--body);font-size:.95rem;background:var(--field);border-radius:8px;padding:12px;border:1px solid var(--line)}
+.msg.skip{color:var(--muted);font-size:.9rem}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:.9rem;z-index:9;max-width:90vw}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+// Sample data transcribed from Dad's Week 1 handwritten lists ("+" amounts added up).
+const SUPPLIERS=[
+ {id:"claire",name:"Claire",what:"Vegetables, sauces, dry goods",items:[
+  ["Onion (red)",10,"kg"],["White onion",8,"kg"],["Garlic",5,"kg"],["Tomatoes",10,"kg"],["Calamansi",5,"kg"],["Luya (ginger)",5,"kg"],
+  ["Bell pepper",5,"kg"],["Sili green",2,"kg"],["Siling labuyo",50,"₱"],["Kangkong",1,"bundle"],["Carrots",2,"bundle"],["Patatas",1,"bundle"],
+  ["Patola",5,"kg"],["Okra",6,"kg"],["Green peas",1,"kg"],["Pasas",1,"pack"],["Talong",1,"bundle"],["Sitaw",8,"bundle"],
+  ["Cabbage",1,"bundle"],["Spring onion",30,"₱"],["Beans",3,"kg"],["Labanos",2,"kg"],["Sayote",1,"bundle"],["Kamias",60,"₱"],
+  ["Pechay Baguio",1,"kg"],["Kalabasa",6,"pcs"],["Malunggay",200,"₱"],["Talbos kamote",2,"bundle"],["Celery / leeks",1,"kg"],
+  ["Ampalaya",1,"bundle"],["Broccoli",3,"pcs"],["Cauliflower",4,"pcs"],["Snow peas",0.25,"kg"],["Mais",6,"pcs"],["Saba",60,"pcs"],
+  ["Tokwa",300,"₱"],["Sardines (big)",3,"can"],["Ketchup",4,"bottle"],["Toyo",1,"gal"],["Suka",1,"gal"],["Oyster sauce",2,"bottle"],
+  ["Liquid seasoning",8,"bottle"],["Tomato sauce",1,"gal"],["Tomato paste",10,"pack"],["Chicken cubes",20,"pcs"],["Pork cubes",20,"pcs"],
+  ["Beef cubes (seasoning)",6,"pcs"],["Crispy fry",6,"pack"],["Bread crumbs",1,"kg"],["Fried garlic",1,"kg"],["Salt",4,"kg"],
+  ["Reno (big)",2,"can"],["Flour",10,"kg"],["Cornstarch",6,"kg"],["Brown sugar",10,"kg"],["White sugar",6,"kg"],
+  ["Salted black beans",3,"pack"],["Shrimp paste",1,"kg"]]},
+ {id:"ling",name:"Ling",what:"Pork, beef, longganisa",items:[
+  ["Skinless longganisa",10,"kg"],["Rolled maling",10,"pcs"],["Longganisa cocktail",10,"kg"],["Longganisa (big)",5,"kg"],
+  ["Porkchop",20,"pcs"],["Porkchop, thin (manipis)",60,"pcs"],["Beef cubes","6+18","kg"],["Beef strips","4+4+4","kg"],["Jowls","30+15","kg"],
+  ["Frozen strips","18+15","kg"],["Giniling","6+20","kg"],["Ribs, adobo cut",20,"kg"],["Frozen adobo cut",18,"kg"],["Liempo, adobo cut",2,"kg"],
+  ["Beef laga",4,"kg"],["Frozen menudo cut",10,"kg"],["Liempo, menudo cut",2,"kg"],["Atay",4,"kg"],["Beef sliced",6,"kg"],
+  ["Paliñgi dugo",null,"ask",true]]},
+ {id:"praktikal",name:"Praktikal",what:"Processed & frozen",items:[
+  ["Tocino",3,"pack"],["Chicken breast nuggets",3,"pack"],["Embutido (foil)",12,"pcs"],["Hungarian sausage",3,"pack"],
+  ["Chicken breast fillet",6,"pack"],["C. Bey refill",3,"pack"],["Spam",10,"can"],["Chili cheesy hotdog",10,"pack"],
+  ["Balone",2,"pack"],["Melon milk",4,"pack"]]},
+ {id:"bing",name:"Bing",what:"Chicken",items:[
+  ["Whole chicken",30,"pcs"],["Atay / balunan",3,"kg"],["Chicken wings",20,"pcs"],["Chicken breast fillet",4,"pack"],
+  ["Gata",5,"kg"],["Paliñgi dugo",null,"ask",true]]},
+ {id:"lourdes",name:"Lourdes",what:"Rice, eggs, bread, water",items:[
+  ["Rice",18,"sack"],["Eggs",25,"tray"],["Yema",3,"pack"],["Hany",5,"pack"],["Crossini, red",6,"pack"],["Crossini, yellow",6,"pack"],
+  ["Bottled water 500 ml",2,"box"]]}
+];
+const KEY="cafeteria-order-sample-v3";
+const packsOf=v=>String(v??"").split("+");
+const hasQty=v=>packsOf(v).some(x=>parseFloat(x)>0);
+const lastLabel=(last,unit)=>{const p=String(last).split("+");return unit==="₱"?"₱"+p.join(" + ₱"):p.join(" + ")+" "+unit};
+const $=s=>document.querySelector(s);
+const fmt=n=>Number.isInteger(n)?String(n):String(+(+n).toFixed(2));
+const key=(sid,n)=>sid+"|"+n;
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let S={opt:3,run:null,qty:{},done:{},o1:"day",o2:"claire",o3:"home"};
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s)S=Object.assign(S,s)}catch(e){}
+S.opt=3; S.o3="start"; // Home layout chosen; always open on the start screen
+S.catalog=S.catalog||{};
+const itemsOf=s=>S.catalog[s.id]||s.items;
+const setItems=(sid,arr)=>{S.catalog[sid]=arr};
+let UI={edit:null,del:null};
+const UNITS=[["kg","kg"],["pcs","pcs"],["bundle","bundle"],["pack","pack"],["sack","sack"],["tray","tray"],["box","box"],["can","can"],["bottle","bottle"],["gal","gallon"],["₱","pesos (₱)"],["ask","ask supplier"]];
+const unitOpts=sel=>UNITS.map(([v,l])=>`<option value="${v}"${v===sel?" selected":""}>${l}</option>`).join("");
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+if(!Object.keys(S.qty).length){ // example half-done order so every layout opens in a working state
+  ["ling","bing"].forEach(id=>SUPPLIERS.find(x=>x.id===id).items.forEach(([n,l])=>{if(l!=null)S.qty[key(id,n)]=String(l)}));
+  S.qty[key("ling","Jowls")]="20+10";S.qty[key("ling","Beef cubes")]="12";S.done={ling:true};
+}
+
+function nextDow(dow){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+((dow-d.getDay()+7)%7));return d}
+const RUNS=[{id:"mon",d:nextDow(1)},{id:"thu",d:nextDow(4)}].sort((a,b)=>a.d-b.d);
+if(!S.run||!RUNS.find(r=>r.id===S.run))S.run=RUNS[0].id;
+const run=()=>RUNS.find(r=>r.id===S.run);
+const dShort=d=>d.toLocaleDateString("en-PH",{weekday:"short",month:"short",day:"numeric"});
+const dLong=d=>d.toLocaleDateString("en-PH",{weekday:"long",month:"long",day:"numeric"});
+const sup=id=>SUPPLIERS.find(s=>s.id===id);
+const countFor=sid=>Object.keys(S.qty).filter(k=>k.startsWith(sid+"|")&&hasQty(S.qty[k])).length;
+const total=()=>SUPPLIERS.reduce((a,s)=>a+countFor(s.id),0);
+
+// ---------- shared pieces ----------
+function rowsHTML(s,q=""){
+  return itemsOf(s).filter(([n])=>!q||n.toLowerCase().includes(q)).map(([n,last,unit,star])=>{
+    const k=key(s.id,n),v=S.qty[k]??"",packs=packsOf(v),multi=packs.length>1,id=k.replace(/[^a-z0-9]/gi,"_");
+    const uLabel=unit==="₱"?"pesos":unit==="ask"?"":unit;
+    const hint=last==null?`<span class="note">${star?'<span class="star">★</span> Ask the supplier':"New item"}</span>`
+      :`<button class="same" type="button" data-same="${esc(k)}" data-v="${last}">Same as last time: ${lastLabel(last,unit)}</button>`;
+    const qty=multi
+      ?`<span class="note">Packed separately — one box per pack</span><div class="packs">${packs.map((p,i)=>`${i?'<span class="plus">+</span>':""}<span class="pack"><input id="q-${id}-${i}" inputmode="decimal" placeholder="0" aria-label="${esc(n)} pack ${i+1}" value="${esc(p)}" data-k="${esc(k)}" data-i="${i}"><span class="unit">${uLabel}</span><button class="rm" type="button" data-rm="${esc(k)}" data-i="${i}" aria-label="Remove pack ${i+1}">×</button></span>`).join("")}</div>`
+      :`<div class="qty"><button class="step" type="button" data-step="-1" data-k="${esc(k)}" aria-label="Less ${esc(n)}">−</button><input id="q-${id}" inputmode="decimal" placeholder="0" aria-label="${esc(n)} amount" value="${esc(v)}" data-k="${esc(k)}"><button class="step" type="button" data-step="1" data-k="${esc(k)}" aria-label="More ${esc(n)}">+</button><span class="unit">${uLabel}</span></div>`;
+    const add=(unit==="₱"||unit==="ask")?"":`<button class="addpack" type="button" data-addpack="${esc(k)}">+ ${multi?"Another pack":"Separate pack"}</button>`;
+    return `<div class="row${hasQty(v)?" on":""}"><div class="name">${esc(n)}</div>${hint}${qty}${add}</div>`;
+  }).join("");
+}
+function stallHTML(s,q,withHead=true){
+  const rows=rowsHTML(s,q);if(q&&!rows)return"";
+  return `<section class="stall">${withHead?`<div class="stall-head"><h3>${s.name}<small>${s.what}</small></h3><button class="ghost" data-fill="${s.id}">Same as last time for all</button></div>`:`<div class="stall-head"><span class="note">${itemsOf(s).length} items</span><button class="ghost" data-fill="${s.id}">Same as last time for all</button></div>`}${rows}</section>`;
+}
+function message(s){
+  const lines=itemsOf(s).map(([n,,unit])=>{const v=S.qty[key(s.id,n)];const p=packsOf(v).map(x=>x.trim()).filter(x=>parseFloat(x)>0);if(!p.length)return null;
+    if(unit==="₱")return `- ${n}: ₱${p.join(" + ₱")} worth`;
+    if(unit==="ask")return `- ${n}: ${p.join(" + ")}`;
+    return p.length>1?`- ${n}: ${p.map(x=>x+" "+unit).join(" + ")} (separate packs)`:`- ${n}: ${p[0]} ${unit}`}).filter(Boolean);
+  return lines.length?`Hi ${s.name}! Order po for ${dLong(run().d)}:\n\n${lines.join("\n")}\n\nThank you po!`:null;
+}
+function msgHTML(s){const t=message(s);
+  return t?`<div class="msg"><div class="msg-head"><h3>${s.name}</h3><button class="ghost" data-copy="${s.id}">Copy message</button></div><pre id="m-${s.id}">${esc(t)}</pre></div>`
+          :`<div class="msg skip"><b>${s.name}</b> — nothing to order this time.</div>`;}
+const daySelect=()=>`<label><span class="lbl">Market day</span><select id="run">${RUNS.map(r=>`<option value="${r.id}"${r.id===S.run?" selected":""}>${dShort(r.d)} · Wk 1</option>`).join("")}</select></label>`;
+const header=(title,{back,mini,steps}={})=>`<header class="app"><div class="wrap">
+  <div class="toprow">${back?`<button class="backbtn" data-go="${back}">← Back</button>`:""}<h1>${title}</h1></div>
+  ${steps||""}${mini?`<div class="mini">${mini}</div>`:""}</div></header>`;
+const stepsBar=n=>`<ol class="steps">${["1. Market day","2. Amounts","3. Send"].map((t,i)=>`<li class="${i<n?"now":""}">${t}</li>`).join("")}</ol>`;
+const searchBox=`<label><span class="lbl">Find an item</span><input id="search" type="search" placeholder="e.g. okra" value="${esc(S.q||"")}"></label>`;
+
+// ---------- Option 1: steps ----------
+function opt1(){
+  if(S.o1==="day") return header("Market Order",{steps:stepsBar(1)})+`<main><div class="wrap">
+    <h2 class="pg">Which market day is this order for?</h2>
+    ${RUNS.map(r=>`<button class="daybtn" data-day="${r.id}" aria-pressed="${r.id===S.run}"><div><b>${dLong(r.d)}</b><span>Week 1 · ${r.id==="mon"?"Monday run (Mon–Wed dishes)":"Thursday run (Thu–Sun dishes)"}</span></div><i>${r.id===S.run?"✓":""}</i></button>`).join("")}
+    </div></main><div class="bar"><div class="wrap"><button class="primary wide" data-go="o1:order">Next: type amounts →</button></div></div>`;
+  if(S.o1==="order") return header("Type amounts",{back:"o1:day",steps:stepsBar(2),mini:searchBox})+`<main><div class="wrap">
+    <p class="intro">For <b>${dLong(run().d)}</b>. Leave a box empty if you don't need that item.</p>
+    ${SUPPLIERS.map(s=>stallHTML(s,(S.q||"").toLowerCase())).join("")}
+    </div></main><div class="bar"><div class="wrap"><div class="count"><b>${total()}</b> items</div><button class="primary" data-go="o1:send" ${total()?"":"disabled"}>Next: messages →</button></div></div>`;
+  return header("Send to suppliers",{back:"o1:order",steps:stepsBar(3)})+`<main><div class="wrap">
+    <p class="intro">Tap <b>Copy message</b>, open that supplier's chat in Viber or Messenger, and paste.</p>
+    ${SUPPLIERS.map(msgHTML).join("")}</div></main>`;
+}
+
+// ---------- Option 2: tabs ----------
+function opt2(){
+  const s=sup(S.o2),t=message(s);
+  return header(s.name+" <small style='font-family:var(--body);font-size:.8rem;font-weight:400;opacity:.8'>· "+s.what+"</small>",{mini:daySelect()})+`<main><div class="wrap">
+    ${stallHTML(s,"",false)}
+    <h2 class="pg">Message for ${s.name}</h2>
+    ${t?`<div class="msg"><pre id="m-${s.id}">${esc(t)}</pre><button class="primary wide" data-copy="${s.id}">Copy ${s.name}'s message</button></div>`:`<p class="intro">Type amounts above. ${s.name}'s message will appear here.</p>`}
+    </div></main>
+    <nav class="bar tabs" aria-label="Suppliers">${SUPPLIERS.map(x=>{const c=countFor(x.id);return `<button data-tab="${x.id}" aria-current="${x.id===S.o2}"><b>${x.name}</b>${c?c+" items":"—"}</button>`}).join("")}</nav>`;
+}
+
+// ---------- Option 3: home ----------
+function opt3(){
+  if(S.o3==="start"){
+    const doneN=SUPPLIERS.filter(s=>S.done[s.id]).length;
+    return header("Market Order")+`<main><div class="wrap">
+      <h2 class="pg">What do you want to do?</h2>
+      <button class="bigbtn go" data-go="o3:home"><b>Get ready to order</b><span>Type amounts for ${dLong(run().d)} · ${doneN} of 5 suppliers done</span></button>
+      <button class="bigbtn edit" data-go="o3:manage"><b>Add, edit or delete items</b><span>Change what's on each supplier's list</span></button>
+      </div></main>`;
+  }
+  if(S.o3==="manage") return header("Add, edit or delete items",{back:"o3:start"})+`<main><div class="wrap">
+    <p class="intro">Pick a supplier to change its list of items.</p>
+    <div class="cards">${SUPPLIERS.map(s=>`<button class="scard" data-go="o3:m-${s.id}"><div class="who"><b>${s.name}</b><span>${s.what}</span></div><span class="pill todo">${itemsOf(s).length} items</span><span class="arrow">›</span></button>`).join("")}</div>
+    </div></main>`;
+  if(S.o3.startsWith("m-")){
+    const s=sup(S.o3.slice(2)),list=itemsOf(s);
+    const rows=list.map(([n,last,unit],i)=>{
+      if(UI.edit===i) return `<form class="row editform" data-form="edit" data-s="${s.id}" data-i="${i}"><div class="form-grid">
+        <label class="f full">Item name<input name="n" id="e-n" value="${esc(n)}" required></label>
+        <label class="f">Unit<select name="u" id="e-u">${unitOpts(unit)}</select></label>
+        <label class="f">Usual amount<input name="l" id="e-l" inputmode="decimal" value="${last==null?"":esc(last)}" placeholder="e.g. 5 or 4+4"></label>
+        <label class="f full">Supplier<select name="s" id="e-s">${SUPPLIERS.map(x=>`<option value="${x.id}"${x.id===s.id?" selected":""}>${x.name}</option>`).join("")}</select></label>
+        </div><div class="mbtns"><button class="primary">Save</button><button class="ghost" type="button" data-cancel="1">Cancel</button></div></form>`;
+      if(UI.del===i) return `<div class="row delrow"><div>Delete <b>${esc(n)}</b> from ${s.name}'s list?</div><div class="mbtns"><button class="dangerfill" data-delyes="${i}">Yes, delete</button><button class="ghost" data-cancel="1">Cancel</button></div></div>`;
+      return `<div class="row mrow"><div class="name">${esc(n)}</div><span class="note">${last==null?"No usual amount":"Usual: "+lastLabel(last,unit)}</span>
+        <div class="mbtns"><button class="ghost" data-edit="${i}">Edit</button><button class="danger" data-del="${i}">Delete</button></div></div>`;
+    }).join("");
+    return header(s.name+"'s items",{back:"o3:manage"})+`<main><div class="wrap">
+      <form class="msg" data-form="add" data-s="${s.id}"><h3 class="addtitle">Add a new item</h3><div class="form-grid">
+        <label class="f full">Item name<input name="n" id="a-n" placeholder="e.g. Upo" required></label>
+        <label class="f">Unit<select name="u" id="a-u">${unitOpts("kg")}</select></label>
+        <label class="f">Usual amount<input name="l" id="a-l" inputmode="decimal" placeholder="e.g. 5 or 4+4"></label>
+        </div><button class="primary wide">Add to ${s.name}</button></form>
+      <section class="stall"><div class="stall-head"><h3>${list.length} items</h3></div>${rows}</section>
+      </div></main>`;
+  }
+  if(S.o3==="home"){
+    const doneN=SUPPLIERS.filter(s=>S.done[s.id]).length;
+    return header("Get ready to order",{back:"o3:start",mini:daySelect()})+`<main><div class="wrap">
+      <h2 class="pg">Order for ${dLong(run().d)}</h2>
+      <p class="intro">Tap a supplier to type amounts. When all 5 are done, send the messages.</p>
+      <div class="cards">${SUPPLIERS.map(s=>{const c=countFor(s.id),d=S.done[s.id];
+        return `<button class="scard" data-go="o3:${s.id}"><div class="who"><b>${s.name}</b><span>${s.what}</span></div>
+          <span class="pill ${d?"done":c?"some":"todo"}">${d?"✓ Done · "+c:c?c+" items · not done":"Not started"}</span><span class="arrow">›</span></button>`}).join("")}</div>
+      </div></main><div class="bar"><div class="wrap"><div class="count"><b>${doneN} of 5</b> done</div><button class="primary" data-go="o3:send" ${total()?"":"disabled"}>Review & send →</button></div></div>`;
+  }
+  if(S.o3==="send") return header("Send to suppliers",{back:"o3:home"})+`<main><div class="wrap">
+    <p class="intro">Tap <b>Copy message</b>, open that supplier's chat in Viber or Messenger, and paste.</p>
+    ${SUPPLIERS.map(msgHTML).join("")}</div></main>`;
+  const s=sup(S.o3);
+  return header(s.name,{back:"o3:home",mini:`<span class="lbl" style="font-size:.8rem">${s.what} · for ${dShort(run().d)}</span>`})+`<main><div class="wrap">
+    ${stallHTML(s,"",false)}</div></main>
+    <div class="bar"><div class="wrap"><div class="count"><b>${countFor(s.id)}</b> items</div><button class="primary" data-done="${s.id}">Done with ${s.name} ✓</button></div></div>`;
+}
+
+// ---------- render + events ----------
+function render(keepScroll){
+  const y=scrollY;
+  document.querySelectorAll("#seg button").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.opt===S.opt)));
+  $("#app").innerHTML=S.opt===1?opt1():S.opt===2?opt2():opt3();
+  if(keepScroll)scrollTo(0,y);
+}
+function setQty(k,v,row){if(v===""||v==null||+v===0){delete S.qty[k];v=""}else S.qty[k]=v;
+  if(row){row.classList.toggle("on",v!=="");const i=row.querySelector("input");if(i&&i!==document.activeElement)i.value=v}
+  save();refreshCounts();}
+function refreshCounts(){ // update small counters without a full re-render (keeps keyboard open)
+  const c=$(".count b");if(c&&S.opt===1)c.textContent=total();
+  if(S.opt===1){const n=$("[data-go='o1:send']");if(n)n.disabled=!total()}
+  if(S.opt===3&&S.o3!=="home"&&S.o3!=="send"&&c)c.textContent=countFor(S.o3);
+  if(S.opt===2){document.querySelectorAll("[data-tab]").forEach(b=>{const n=countFor(b.dataset.tab);b.lastChild.textContent=n?n+" items":"—"});
+    const s=sup(S.o2),t=message(s),pre=$("#m-"+s.id);if(pre&&t)pre.textContent=t;else if(!!pre!==!!t)render(true)}
+}
+document.addEventListener("input",e=>{
+  if(e.target.id==="search"){S.q=e.target.value;save();render();const i=$("#search");i.focus();i.setSelectionRange(i.value.length,i.value.length);return}
+  const k=e.target.dataset.k;if(!k||e.target.tagName!=="INPUT")return;
+  if(e.target.dataset.i!=null){const row=e.target.closest(".row");const vals=[...row.querySelectorAll("input[data-i]")].map(i=>i.value.trim());
+    S.qty[k]=vals.join("+");row.classList.toggle("on",hasQty(S.qty[k]));save();refreshCounts();return}
+  setQty(k,e.target.value.trim(),e.target.closest(".row"));
+});
+document.addEventListener("change",e=>{if(e.target.id==="run"){S.run=e.target.value;save();render(true)}});
+document.addEventListener("click",async e=>{
+  const t=e.target.closest("button");if(!t)return;const d=t.dataset;
+  if(d.opt){S.opt=+d.opt;save();render();scrollTo(0,0);return}
+  if(d.edit){UI={edit:+d.edit,del:null};render(true);const i=$("#e-n");if(i)i.focus();return}
+  if(d.del){UI={edit:null,del:+d.del};render(true);return}
+  if(d.cancel){UI={edit:null,del:null};render(true);return}
+  if(d.delyes){const sid=S.o3.slice(2),list=itemsOf(sup(sid)).slice(),[it]=list.splice(+d.delyes,1);
+    setItems(sid,list);delete S.qty[key(sid,it[0])];UI={edit:null,del:null};save();render(true);toast("Deleted "+it[0]);return}
+  if(d.addpack){const v=S.qty[d.addpack]??"";S.qty[d.addpack]=v+"+";save();render(true);
+    const ins=document.querySelectorAll(`input[data-k="${CSS.escape(d.addpack)}"][data-i]`);if(ins.length)ins[ins.length-1].focus();return}
+  if(d.rm){const p=packsOf(S.qty[d.rm]);p.splice(+d.i,1);if(p.length===1&&!p[0].trim())delete S.qty[d.rm];else S.qty[d.rm]=p.join("+");save();render(true);return}
+  if(d.step){const inp=t.parentElement.querySelector("input");const nv=Math.max(0,(parseFloat(inp.value)||0)+(+d.step));inp.value=nv?fmt(nv):"";setQty(d.k,nv?fmt(nv):"",t.closest(".row"));return}
+  if(d.same){if(d.v.includes("+")||packsOf(S.qty[d.same]).length>1){S.qty[d.same]=d.v;save();render(true)}else setQty(d.same,d.v,t.closest(".row"));return}
+  if(d.fill){itemsOf(sup(d.fill)).forEach(([n,l])=>{if(l!=null)S.qty[key(d.fill,n)]=String(l)});save();render(true);toast(sup(d.fill).name+": same as last time");return}
+  if(d.day){S.run=d.day;save();render(true);return}
+  if(d.tab){S.o2=d.tab;save();render();scrollTo(0,0);return}
+  if(d.done){S.done[d.done]=true;S.o3="home";save();render();scrollTo(0,0);toast(sup(d.done).name+" marked done");return}
+  if(d.go){const[o,v]=d.go.split(":");S[o]=v;UI={edit:null,del:null};save();render();scrollTo(0,0);return}
+  if(d.copy){const s=sup(d.copy),txt=message(s);
+    try{await navigator.clipboard.writeText(txt);toast("Copied — paste it in "+s.name+"'s chat")}
+    catch(err){const r=document.createRange();r.selectNodeContents($("#m-"+s.id));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);toast("Selected — press copy")}}
+});
+document.addEventListener("submit",e=>{
+  e.preventDefault();const f=e.target,sid=f.dataset.s,n=f.n.value.trim(),u=f.u.value,l=f.l.value.replace(/\s/g,"");if(!n)return;
+  const last=l===""?null:l;
+  if(f.dataset.form==="add"){const list=itemsOf(sup(sid)).slice();
+    if(list.some(([x])=>x.toLowerCase()===n.toLowerCase())){toast(n+" is already on "+sup(sid).name+"'s list");return}
+    list.unshift([n,last,u]);setItems(sid,list);save();render(true);toast("Added "+n+" to "+sup(sid).name);return}
+  if(f.dataset.form==="edit"){const i=+f.dataset.i,ns=f.s.value,old=itemsOf(sup(sid)).slice(),[it]=old.splice(i,1);
+    const item=[n,last,u];
+    if(ns===sid)old.splice(i,0,item);else{const tl=itemsOf(sup(ns)).slice();tl.unshift(item);setItems(ns,tl)}
+    setItems(sid,old);
+    const ok=key(sid,it[0]),nk=key(ns,n);if(ok!==nk&&S.qty[ok]!=null){S.qty[nk]=S.qty[ok];delete S.qty[ok]}
+    UI={edit:null,del:null};save();render(true);toast(ns===sid?"Saved "+n:"Moved "+n+" to "+sup(ns).name)}
+});
+let tt;function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,1800)}
+render();
+</script>
+</body>
+</html>
