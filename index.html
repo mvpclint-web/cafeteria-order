@@ -186,7 +186,10 @@ let S={opt:3,run:null,qty:{},done:{},o1:"day",o2:"claire",o3:"home"};
 try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s)S=Object.assign(S,s)}catch(e){}
 S.opt=3; S.o3="start"; // Home layout chosen; always open on the start screen
 S.catalog=S.catalog||{};
-const itemsOf=s=>S.catalog[s.id]||s.items;
+const DEFAULT_ITEMS=Object.fromEntries(SUPPLIERS.map(s=>[s.id,s.items]));
+S.sups=S.sups||SUPPLIERS.map(({id,name,what})=>({id,name,what}));
+const SUPS=()=>S.sups;
+const itemsOf=s=>S.catalog[s.id]||DEFAULT_ITEMS[s.id]||[];
 const setItems=(sid,arr)=>{S.catalog[sid]=arr};
 let UI={edit:null,del:null};
 const UNITS=[["kg","kg"],["pcs","pcs"],["bundle","bundle"],["pack","pack"],["sack","sack"],["tray","tray"],["box","box"],["can","can"],["bottle","bottle"],["gal","gallon"],["₱","pesos (₱)"],["ask","ask supplier"]];
@@ -203,9 +206,9 @@ if(!S.run||!RUNS.find(r=>r.id===S.run))S.run=RUNS[0].id;
 const run=()=>RUNS.find(r=>r.id===S.run);
 const dShort=d=>d.toLocaleDateString("en-PH",{weekday:"short",month:"short",day:"numeric"});
 const dLong=d=>d.toLocaleDateString("en-PH",{weekday:"long",month:"long",day:"numeric"});
-const sup=id=>SUPPLIERS.find(s=>s.id===id);
+const sup=id=>SUPS().find(s=>s.id===id);
 const countFor=sid=>Object.keys(S.qty).filter(k=>k.startsWith(sid+"|")&&hasQty(S.qty[k])).length;
-const total=()=>SUPPLIERS.reduce((a,s)=>a+countFor(s.id),0);
+const total=()=>SUPS().reduce((a,s)=>a+countFor(s.id),0);
 
 // ---------- shared pieces ----------
 function rowsHTML(s,q=""){
@@ -250,11 +253,11 @@ function opt1(){
     </div></main><div class="bar"><div class="wrap"><button class="primary wide" data-go="o1:order">Next: type amounts →</button></div></div>`;
   if(S.o1==="order") return header("Type amounts",{back:"o1:day",steps:stepsBar(2),mini:searchBox})+`<main><div class="wrap">
     <p class="intro">For <b>${dLong(run().d)}</b>. Leave a box empty if you don't need that item.</p>
-    ${SUPPLIERS.map(s=>stallHTML(s,(S.q||"").toLowerCase())).join("")}
+    ${SUPS().map(s=>stallHTML(s,(S.q||"").toLowerCase())).join("")}
     </div></main><div class="bar"><div class="wrap"><div class="count"><b>${total()}</b> items</div><button class="primary" data-go="o1:send" ${total()?"":"disabled"}>Next: messages →</button></div></div>`;
   return header("Send to suppliers",{back:"o1:order",steps:stepsBar(3)})+`<main><div class="wrap">
     <p class="intro">Tap <b>Copy message</b>, open that supplier's chat in Viber or Messenger, and paste.</p>
-    ${SUPPLIERS.map(msgHTML).join("")}</div></main>`;
+    ${SUPS().map(msgHTML).join("")}</div></main>`;
 }
 
 // ---------- Option 2: tabs ----------
@@ -265,37 +268,49 @@ function opt2(){
     <h2 class="pg">Message for ${s.name}</h2>
     ${t?`<div class="msg"><pre id="m-${s.id}">${esc(t)}</pre><button class="primary wide" data-copy="${s.id}">Copy ${s.name}'s message</button></div>`:`<p class="intro">Type amounts above. ${s.name}'s message will appear here.</p>`}
     </div></main>
-    <nav class="bar tabs" aria-label="Suppliers">${SUPPLIERS.map(x=>{const c=countFor(x.id);return `<button data-tab="${x.id}" aria-current="${x.id===S.o2}"><b>${x.name}</b>${c?c+" items":"—"}</button>`}).join("")}</nav>`;
+    <nav class="bar tabs" aria-label="Suppliers">${SUPS().map(x=>{const c=countFor(x.id);return `<button data-tab="${x.id}" aria-current="${x.id===S.o2}"><b>${x.name}</b>${c?c+" items":"—"}</button>`}).join("")}</nav>`;
 }
 
 // ---------- Option 3: home ----------
 function opt3(){
   if(S.o3==="start"){
-    const doneN=SUPPLIERS.filter(s=>S.done[s.id]).length;
+    const doneN=SUPS().filter(s=>S.done[s.id]).length;
     return header("Market Order")+`<main><div class="wrap">
       <h2 class="pg">What do you want to do?</h2>
-      <button class="bigbtn go" data-go="o3:home"><b>Get ready to order</b><span>Type amounts for ${dLong(run().d)} · ${doneN} of 5 suppliers done</span></button>
-      <button class="bigbtn edit" data-go="o3:manage"><b>Add, edit or delete items</b><span>Change what's on each supplier's list</span></button>
+      <button class="bigbtn go" data-go="o3:home"><b>Get ready to order</b><span>Type amounts for ${dLong(run().d)} · ${doneN} of ${SUPS().length} suppliers done</span></button>
+      <button class="bigbtn edit" data-go="o3:manage"><b>Suppliers & items</b><span>Add, edit or delete suppliers and what's on their lists</span></button>
       </div></main>`;
   }
-  if(S.o3==="manage") return header("Add, edit or delete items",{back:"o3:start"})+`<main><div class="wrap">
-    <p class="intro">Pick a supplier to change its list of items.</p>
-    <div class="cards">${SUPPLIERS.map(s=>`<button class="scard" data-go="o3:m-${s.id}"><div class="who"><b>${s.name}</b><span>${s.what}</span></div><span class="pill todo">${itemsOf(s).length} items</span><span class="arrow">›</span></button>`).join("")}</div>
+  if(S.o3==="manage") return header("Suppliers & items",{back:"o3:start"})+`<main><div class="wrap">
+    <p class="intro">Tap a supplier to change its name or its items.</p>
+    <div class="cards">${SUPS().map(s=>`<button class="scard" data-go="o3:m-${s.id}"><div class="who"><b>${esc(s.name)}</b><span>${esc(s.what)}</span></div><span class="pill todo">${itemsOf(s).length} items</span><span class="arrow">›</span></button>`).join("")||`<p class="intro">No suppliers yet. Add one below.</p>`}</div>
+    <form class="msg" data-form="addsup"><h3 class="addtitle">Add a new supplier</h3><div class="form-grid">
+      <label class="f full">Supplier name<input name="n" id="as-n" placeholder="e.g. Mang Tony" required></label>
+      <label class="f full">What they sell<input name="w" id="as-w" placeholder="e.g. Fish and seafood"></label>
+      </div><button class="primary wide">Add supplier</button></form>
     </div></main>`;
   if(S.o3.startsWith("m-")){
-    const s=sup(S.o3.slice(2)),list=itemsOf(s);
+    const s=sup(S.o3.slice(2));if(!s){S.o3="manage";return opt3()}
+    const list=itemsOf(s);
+    const supBox=UI.supEdit?`<form class="msg editform" data-form="editsup" data-s="${s.id}"><h3 class="addtitle">Edit supplier</h3><div class="form-grid">
+        <label class="f full">Supplier name<input name="n" id="es-n" value="${esc(s.name)}" required></label>
+        <label class="f full">What they sell<input name="w" id="es-w" value="${esc(s.what)}"></label>
+        </div><div class="mbtns"><button class="primary">Save</button><button class="ghost" type="button" data-cancel="1">Cancel</button></div></form>`
+      :UI.supDel?`<div class="msg delrow"><div>Delete <b>${esc(s.name)}</b> and all ${list.length} of their items? This can't be undone.</div><div class="mbtns"><button class="dangerfill" data-supdelyes="${s.id}">Yes, delete supplier</button><button class="ghost" data-cancel="1">Cancel</button></div></div>`
+      :`<div class="msg"><div class="msg-head"><div><h3 class="addtitle">${esc(s.name)}</h3><span class="note">${esc(s.what||"")}</span></div></div><div class="mbtns"><button class="ghost" data-supedit="1">Edit supplier</button><button class="danger" data-supdel="1">Delete supplier</button></div></div>`;
     const rows=list.map(([n,last,unit],i)=>{
       if(UI.edit===i) return `<form class="row editform" data-form="edit" data-s="${s.id}" data-i="${i}"><div class="form-grid">
         <label class="f full">Item name<input name="n" id="e-n" value="${esc(n)}" required></label>
         <label class="f">Unit<select name="u" id="e-u">${unitOpts(unit)}</select></label>
         <label class="f">Usual amount<input name="l" id="e-l" inputmode="decimal" value="${last==null?"":esc(last)}" placeholder="e.g. 5 or 4+4"></label>
-        <label class="f full">Supplier<select name="s" id="e-s">${SUPPLIERS.map(x=>`<option value="${x.id}"${x.id===s.id?" selected":""}>${x.name}</option>`).join("")}</select></label>
+        <label class="f full">Supplier<select name="s" id="e-s">${SUPS().map(x=>`<option value="${x.id}"${x.id===s.id?" selected":""}>${x.name}</option>`).join("")}</select></label>
         </div><div class="mbtns"><button class="primary">Save</button><button class="ghost" type="button" data-cancel="1">Cancel</button></div></form>`;
       if(UI.del===i) return `<div class="row delrow"><div>Delete <b>${esc(n)}</b> from ${s.name}'s list?</div><div class="mbtns"><button class="dangerfill" data-delyes="${i}">Yes, delete</button><button class="ghost" data-cancel="1">Cancel</button></div></div>`;
       return `<div class="row mrow"><div class="name">${esc(n)}</div><span class="note">${last==null?"No usual amount":"Usual: "+lastLabel(last,unit)}</span>
         <div class="mbtns"><button class="ghost" data-edit="${i}">Edit</button><button class="danger" data-del="${i}">Delete</button></div></div>`;
     }).join("");
-    return header(s.name+"'s items",{back:"o3:manage"})+`<main><div class="wrap">
+    return header(esc(s.name)+"'s items",{back:"o3:manage"})+`<main><div class="wrap">
+      ${supBox}
       <form class="msg" data-form="add" data-s="${s.id}"><h3 class="addtitle">Add a new item</h3><div class="form-grid">
         <label class="f full">Item name<input name="n" id="a-n" placeholder="e.g. Upo" required></label>
         <label class="f">Unit<select name="u" id="a-u">${unitOpts("kg")}</select></label>
@@ -305,18 +320,18 @@ function opt3(){
       </div></main>`;
   }
   if(S.o3==="home"){
-    const doneN=SUPPLIERS.filter(s=>S.done[s.id]).length;
+    const doneN=SUPS().filter(s=>S.done[s.id]).length;
     return header("Get ready to order",{back:"o3:start",mini:daySelect()})+`<main><div class="wrap">
       <h2 class="pg">Order for ${dLong(run().d)}</h2>
-      <p class="intro">Tap a supplier to type amounts. When all 5 are done, send the messages.</p>
-      <div class="cards">${SUPPLIERS.map(s=>{const c=countFor(s.id),d=S.done[s.id];
+      <p class="intro">Tap a supplier to type amounts. When they are all done, send the messages.</p>
+      <div class="cards">${SUPS().map(s=>{const c=countFor(s.id),d=S.done[s.id];
         return `<button class="scard" data-go="o3:${s.id}"><div class="who"><b>${s.name}</b><span>${s.what}</span></div>
           <span class="pill ${d?"done":c?"some":"todo"}">${d?"✓ Done · "+c:c?c+" items · not done":"Not started"}</span><span class="arrow">›</span></button>`}).join("")}</div>
-      </div></main><div class="bar"><div class="wrap"><div class="count"><b>${doneN} of 5</b> done</div><button class="primary" data-go="o3:send" ${total()?"":"disabled"}>Review & send →</button></div></div>`;
+      </div></main><div class="bar"><div class="wrap"><div class="count"><b>${doneN} of ${SUPS().length}</b> done</div><button class="primary" data-go="o3:send" ${total()?"":"disabled"}>Review & send →</button></div></div>`;
   }
   if(S.o3==="send") return header("Send to suppliers",{back:"o3:home"})+`<main><div class="wrap">
     <p class="intro">Tap <b>Copy message</b>, open that supplier's chat in Viber or Messenger, and paste.</p>
-    ${SUPPLIERS.map(msgHTML).join("")}</div></main>`;
+    ${SUPS().map(msgHTML).join("")}</div></main>`;
   const s=sup(S.o3);
   return header(s.name,{back:"o3:home",mini:`<span class="lbl" style="font-size:.8rem">${s.what} · for ${dShort(run().d)}</span>`})+`<main><div class="wrap">
     ${stallHTML(s,"",false)}</div></main>
@@ -351,6 +366,10 @@ document.addEventListener("change",e=>{if(e.target.id==="run"){S.run=e.target.va
 document.addEventListener("click",async e=>{
   const t=e.target.closest("button");if(!t)return;const d=t.dataset;
   if(d.opt){S.opt=+d.opt;save();render();scrollTo(0,0);return}
+  if(d.supedit){UI={supEdit:true};render(true);return}
+  if(d.supdel){UI={supDel:true};render(true);return}
+  if(d.supdelyes){const id=d.supdelyes,nm=sup(id).name;S.sups=S.sups.filter(x=>x.id!==id);delete S.catalog[id];delete S.done[id];
+    Object.keys(S.qty).forEach(k=>{if(k.startsWith(id+"|"))delete S.qty[k]});UI={edit:null,del:null};S.o3="manage";save();render();scrollTo(0,0);toast("Deleted "+nm);return}
   if(d.edit){UI={edit:+d.edit,del:null};render(true);const i=$("#e-n");if(i)i.focus();return}
   if(d.del){UI={edit:null,del:+d.del};render(true);return}
   if(d.cancel){UI={edit:null,del:null};render(true);return}
@@ -371,7 +390,11 @@ document.addEventListener("click",async e=>{
     catch(err){const r=document.createRange();r.selectNodeContents($("#m-"+s.id));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);toast("Selected — press copy")}}
 });
 document.addEventListener("submit",e=>{
-  e.preventDefault();const f=e.target,sid=f.dataset.s,n=f.n.value.trim(),u=f.u.value,l=f.l.value.replace(/\s/g,"");if(!n)return;
+  e.preventDefault();const f=e.target,sid=f.dataset.s,n=f.n.value.trim();if(!n)return;
+  if(f.dataset.form==="addsup"){if(S.sups.some(x=>x.name.toLowerCase()===n.toLowerCase())){toast(n+" is already a supplier");return}
+    const id="s"+Date.now().toString(36);S.sups.push({id,name:n,what:f.w.value.trim()});S.catalog[id]=[];save();render(true);toast("Added supplier "+n);return}
+  if(f.dataset.form==="editsup"){const s=sup(sid);s.name=n;s.what=f.w.value.trim();UI={edit:null,del:null};save();render(true);toast("Saved "+n);return}
+  const u=f.u.value,l=f.l.value.replace(/\s/g,"");
   const last=l===""?null:l;
   if(f.dataset.form==="add"){const list=itemsOf(sup(sid)).slice();
     if(list.some(([x])=>x.toLowerCase()===n.toLowerCase())){toast(n+" is already on "+sup(sid).name+"'s list");return}
